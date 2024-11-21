@@ -4,6 +4,7 @@ frontend/node_modules
 env.json
 .env_hr_us_ben
 .env_c2c_tickets
+.env_reg_affairs
 # static
 .azure/
 __pycache__/
