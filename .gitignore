@@ -9,3 +9,4 @@ env.json
 .azure/
 __pycache__/
 .ipynb_checkpoints/
+venv/
