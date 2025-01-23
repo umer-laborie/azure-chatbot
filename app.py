@@ -15,7 +15,7 @@ from quart import (
     render_template,
     current_app,
 )
-
+import requests
 from openai import AsyncAzureOpenAI
 from azure.identity.aio import (
     DefaultAzureCredential,
@@ -47,16 +47,6 @@ def create_app():
     app = Quart(__name__)
     app.register_blueprint(bp)
     app.config["TEMPLATES_AUTO_RELOAD"] = True
-    TENANT_ID = app_settings.code_interpreter_settings.tenant_id
-    AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
-    app.SCOPES = ["https://graph.microsoft.com/.default"]
-    app.GRAPH_ENDPOINT = "https://graph.microsoft.com/v1.0"
-    CLIENT_ID = app_settings.code_interpreter_settings.client_id
-    CLIENT_SECRET = app_settings.code_interpreter_settings.client_secret
-    # MSAL Client
-    app.msal_client = ConfidentialClientApplication(
-        CLIENT_ID, authority=AUTHORITY, client_credential=CLIENT_SECRET
-    )
 
     @app.before_serving
     async def init():
@@ -950,7 +940,6 @@ async def get_files():
         client = await init_ci_openai_client()
         my_assistant = await client.beta.assistants.retrieve(assistantId)
         # data = request.get_json()
-
         file_list = my_assistant.tool_resources.code_interpreter.file_ids
         # Retrieve file details for each file ID
         files_array = []
@@ -1003,18 +992,19 @@ async def upload_files():
 
 
 @bp.route('/api/assistants/files', methods=['DELETE'])
-def delete_files():
+async def delete_files():
     try:
         # Parse the JSON body to extract the file
         print("request to delete", request)
-        body = request.json
+        body = await request.json
         file_id = body.get("fileId")
         print("file_id to delete", file_id)
         if not file_id:
             return jsonify({"error": "File ID is required"}), 400
+        client = await init_ci_openai_client()
 
         # Delete the file using OpenAI's API
-        client.files.delete(file_id)
+        await client.files.delete(file_id)
 
         # Return a successful response
         return '', 204  # 204 No Content indicates successful deletion
@@ -1022,4 +1012,47 @@ def delete_files():
         return jsonify({"error": str(e)}), 500
 
 
+@bp.route("/api/sharepoint-folder", methods=["GET"])
+async def get_sharepoint_folder():
+    try:
+        folder_id = request.args.get(
+            "folderId", "root")  # Default to root folder
+        TENANT_ID = app_settings.code_interpreter_settings.tenant_id
+        AUTHORITY = f"https://login.microsoftonline.com/{TENANT_ID}"
+        SCOPES = ["https://graph.microsoft.com/.default"]
+        GRAPH_ENDPOINT = "https://graph.microsoft.com/v1.0"
+        CLIENT_ID = app_settings.code_interpreter_settings.client_id
+        CLIENT_SECRET = app_settings.code_interpreter_settings.client_secret
+        # MSAL Client
+        msal_client = ConfidentialClientApplication(
+            CLIENT_ID, authority=AUTHORITY, client_credential=CLIENT_SECRET
+        )
+        access_token = msal_client.acquire_token_for_client(
+            SCOPES).get("access_token")
+        if not access_token:
+            return jsonify({"error": "Authentication failed"}), 401
+
+        site_id = "laborieonline.sharepoint.com,8a0e1974-8e94-414f-b582-969217bb60b0,927191b1-be96-44d4-a5fe-2d736992cd6f"
+        drive_id = "b!dBkOipSOT0G1gpaSF7tgsLGRcZKWvtREpf4tc2mSzW-0HlQFLT87SZb-KGNJtEx7"
+
+        headers = {"Authorization": f"Bearer {access_token}"}
+        url = f"{
+            GRAPH_ENDPOINT}/sites/{site_id}/drives/{drive_id}/items/{folder_id}/children"
+        response = requests.get(url, headers=headers)
+        response.raise_for_status()
+
+        items = response.json().get("value", [])
+        result = []
+        for item in items:
+            result.append({
+                "id": item.get("id"),
+                "name": item.get("name"),
+                "type": "folder" if item.get("folder") else "file"
+            })
+
+        return jsonify(result), 200
+
+    except Exception as e:
+        print(e)
+        return jsonify({"error": str(e)}), 500
 app = create_app()

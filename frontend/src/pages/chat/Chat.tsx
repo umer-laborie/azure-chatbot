@@ -39,6 +39,7 @@ import { ChatHistoryPanel } from "../../components/ChatHistory/ChatHistoryPanel"
 import { AppStateContext } from "../../state/AppProvider";
 import { useBoolean } from "@fluentui/react-hooks";
 import { FileViewer } from "../../components/FileManager/FileViewer";
+import { SharepointFileViewer } from "../../components/FileManager/SharepointFileViewer";
 const enum messageStatus {
 	NotRunning = 'Not Running',
 	Processing = 'Processing',
@@ -1034,7 +1035,7 @@ const Chat = () => {
 					)}
 					{appStateContext?.state.isChatHistoryOpen &&
 						appStateContext?.state.isCosmosDBAvailable?.status !== CosmosDBStatus.NotConfigured && <ChatHistoryPanel />}
-					<FileViewer />
+					<SharepointFileViewer />
 				</Stack>
 			)}
 		</div>

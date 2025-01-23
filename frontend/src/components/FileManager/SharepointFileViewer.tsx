@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import styles from "./file-viewer.module.css";
+import styles from "./FileViewer.module.css";
 
 type File = {
 	id: string;
@@ -15,7 +15,7 @@ type SelectedFiles = {
 	[key: string]: File;
 };
 
-const SharepointFileViewer: React.FC = () => {
+export function SharepointFileViewer() {
 	const [files, setFiles] = useState<File[]>([]);
 	const [expandedFolders, setExpandedFolders] = useState<ExpandedFolders>({});
 	const [selectedFiles, setSelectedFiles] = useState<SelectedFiles>({});
@@ -180,4 +180,3 @@ const SharepointFileViewer: React.FC = () => {
 	);
 };
 
-export default SharepointFileViewer;
